@@ -1,0 +1,18 @@
+{
+  "name": "manychat-claude-webhook",
+  "version": "1.0.0",
+  "description": "Webhook server: ManyChat to Claude API (LARA closer de vendas)",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "express": "^4.21.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -30,16 +30,23 @@ app.post("/webhook", async (req, res) => {
       const token = req.headers["x-webhook-secret"] || req.query.secret;
       if (token !== WEBHOOK_SECRET) return res.status(401).json({ error: "Unauthorized" });
     }
-    const { subscriber_id, user_message, first_name = "", last_name = "", phone = "" } = req.body;
-    if (!subscriber_id || !user_message) return res.status(400).json({ error: "Missing subscriber_id or user_message" });
 
-    let conv = conversations.get(subscriber_id);
-    if (!conv) { conv = { messages: [], updatedAt: Date.now() }; conversations.set(subscriber_id, conv); }
+    // Accept both custom format AND ManyChat Full Contact Data format
+    const body = req.body;
+    const subscriber_id = body.subscriber_id || body.id || body.key || "unknown";
+    const user_message = body.user_message || body.last_input_text || "";
+    const first_name = body.first_name || body.name || "";
+    const last_name = body.last_name || "";
+    const phone = body.phone || "";
+
+    if (!user_message) return res.status(400).json({ error: "No message found" });
+
+    let conv = conversations.get(String(subscriber_id));
+    if (!conv) { conv = { messages: [], updatedAt: Date.now() }; conversations.set(String(subscriber_id), conv); }
 
     let messageContent = user_message;
-    if (conv.messages.length === 0 && (first_name || phone)) {
-      const ctx = [first_name && ("Nome: " + first_name + " " + last_name).trim(), phone && ("Telefone: " + phone)].filter(Boolean).join(" | ");
-      messageContent = "[Contexto do lead: " + ctx + "]\n\n" + user_message;
+    if (conv.messages.length === 0 && first_name) {
+      messageContent = "[Lead: " + first_name + " " + last_name + (phone ? " | Tel: " + phone : "") + "]\n\n" + user_message;
     }
 
     conv.messages.push({ role: "user", content: messageContent });
@@ -50,7 +57,9 @@ app.post("/webhook", async (req, res) => {
     conv.messages.push({ role: "assistant", content: assistantMessage });
     conv.updatedAt = Date.now();
 
-    res.json({ version: "v2", content: { messages: [{ type: "text", text: assistantMessage }], actions: [{ action: "set_field_value", field_name: "lara_last_response", value: assistantMessage.substring(0, 255) }] } });
+    console.log("[" + first_name + "] " + user_message.substring(0, 50) + " -> " + assistantMessage.substring(0, 50));
+
+    res.json({ version: "v2", content: { messages: [{ type: "text", text: assistantMessage }] } });
   } catch (error) {
     console.error("Webhook error:", error.message);
     res.json({ version: "v2", content: { messages: [{ type: "text", text: "Opa, estou com uma instabilidade. Pode mandar de novo em alguns segundos?" }] } });
